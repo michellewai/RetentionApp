@@ -5,10 +5,14 @@ import { ATTRIBUTES } from './attributes.ts'
 import { AS_OF, makeMember } from './testMember.ts'
 
 /** The group an attribute puts a member in. */
-function groupOf(attributeId: string, overrides: Partial<Member>) {
+function groupOf(
+  attributeId: string,
+  overrides: Partial<Member>,
+  visitsPerMonth = 0,
+) {
   const attribute = ATTRIBUTES.find((a) => a.id === attributeId)
   if (!attribute) throw new Error(`No attribute called ${attributeId}`)
-  return attribute.groupOf(makeMember(overrides), AS_OF)
+  return attribute.groupOf(makeMember(overrides), AS_OF, visitsPerMonth)
 }
 
 describe('age bands', () => {
@@ -23,6 +27,37 @@ describe('age bands', () => {
     ['1981-11-10', '45 and over'],
   ])('puts someone born %s in "%s"', (dateOfBirth, band) => {
     expect(groupOf('age', { dateOfBirth })).toBe(band)
+  })
+})
+
+describe('visit bands', () => {
+  it.each([
+    [0, 'Under 3 a month'],
+    [2.9, 'Under 3 a month'],
+    [3, '3 to 8 a month'],
+    [8, '3 to 8 a month'],
+    [8.1, 'Over 8 a month'],
+  ])('puts %d visits a month in "%s"', (visitsPerMonth, band) => {
+    expect(groupOf('visits', {}, visitsPerMonth)).toBe(band)
+  })
+})
+
+describe('time as a member bands', () => {
+  it.each([
+    ['2026-10-01', 'Under 6 months'],
+    ['2026-03-01', '6 to 12 months'],
+    ['2025-06-01', '1 to 2 years'],
+    ['2024-06-01', 'Over 2 years'],
+  ])('puts someone who joined %s in "%s"', (membershipStartDate, band) => {
+    expect(groupOf('tenure', { membershipStartDate })).toBe(band)
+  })
+
+  it('measures a cancelled member up to the day they cancelled', () => {
+    const lastedTwoMonths = {
+      membershipStartDate: '2025-01-01',
+      cancelledAt: '2025-03-01',
+    }
+    expect(groupOf('tenure', lastedTwoMonths)).toBe('Under 6 months')
   })
 })
 
@@ -109,7 +144,7 @@ describe('the attribute list', () => {
     for (const attribute of ATTRIBUTES) {
       if (!attribute.groups) continue
       for (const member of analysed) {
-        const group = attribute.groupOf(member, AS_OF)
+        const group = attribute.groupOf(member, AS_OF, 5)
         if (group !== null) expect(attribute.groups).toContain(group)
       }
     }

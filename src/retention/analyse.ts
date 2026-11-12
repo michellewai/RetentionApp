@@ -2,6 +2,7 @@ import type { CheckIn, Member } from '../data/types.ts'
 import { ATTRIBUTES } from './attributes.ts'
 import { STATUSES, getStatuses, isRetained } from './status.ts'
 import type { MemberStatus } from './status.ts'
+import { getVisitsPerMonth } from './usage.ts'
 
 export const NOT_GIVEN = 'Not given'
 
@@ -61,6 +62,7 @@ export function analyseRetention(
   const { asOf, statuses } = getStatuses(allMembers, checkIns)
   const members = allMembers.filter((m) => m.membershipType !== 'day_pass')
   const statusOf = (member: Member) => statuses.get(member.id) ?? 'active'
+  const visitsPerMonth = getVisitsPerMonth(members, checkIns, asOf)
 
   const overall = emptyCounts()
   for (const member of members) overall[statusOf(member)]++
@@ -68,7 +70,9 @@ export function analyseRetention(
   const attributes = ATTRIBUTES.map((attribute): AttributeBreakdown => {
     const byGroup = new Map<string, StatusCounts>()
     for (const member of members) {
-      const group = attribute.groupOf(member, asOf) ?? NOT_GIVEN
+      const group =
+        attribute.groupOf(member, asOf, visitsPerMonth.get(member.id) ?? 0) ??
+        NOT_GIVEN
       const counts = byGroup.get(group) ?? emptyCounts()
       counts[statusOf(member)]++
       byGroup.set(group, counts)

@@ -16,8 +16,15 @@ export interface Attribute {
   label: string
   /** Group names in display order; omit to sort them alphabetically. */
   groups?: string[]
-  /** The group a member belongs to, or null if they did not say. */
-  groupOf: (member: Member, asOf: string) => string | null
+  /**
+   * The group a member belongs to, or null if they did not say.
+   * visitsPerMonth is the member's average check-ins a month.
+   */
+  groupOf: (
+    member: Member,
+    asOf: string,
+    visitsPerMonth: number,
+  ) => string | null
 }
 
 /** An attribute with a Yes group and a No group. */
@@ -63,6 +70,8 @@ function anyOrNone(
   }
 }
 
+const MS_PER_MONTH = 30.4 * 24 * 60 * 60 * 1000
+
 function ageOn(dateOfBirth: string, asOf: string) {
   const years = Number(asOf.slice(0, 4)) - Number(dateOfBirth.slice(0, 4))
   return asOf.slice(5) >= dateOfBirth.slice(5) ? years : years - 1
@@ -72,6 +81,20 @@ function ageBand(age: number) {
   if (age < 25) return 'Under 25'
   if (age < 35) return '25 to 34'
   return age < 45 ? '35 to 44' : '45 and over'
+}
+
+/** How long someone has been, or was, a member, in bands. */
+function tenureBand(member: Member, asOf: string) {
+  const end = Date.parse(member.cancelledAt ?? asOf)
+  const months = (end - Date.parse(member.membershipStartDate)) / MS_PER_MONTH
+  if (months < 6) return 'Under 6 months'
+  if (months < 12) return '6 to 12 months'
+  return months < 24 ? '1 to 2 years' : 'Over 2 years'
+}
+
+function visitBand(visitsPerMonth: number) {
+  if (visitsPerMonth < 3) return 'Under 3 a month'
+  return visitsPerMonth <= 8 ? '3 to 8 a month' : 'Over 8 a month'
 }
 
 function heightBand(heightCm: number | null) {
@@ -96,6 +119,18 @@ export const ATTRIBUTES: Attribute[] = [
     label: 'Membership type',
     groups: ['Monthly', 'Annual', 'Punch pass'],
     groupOf: (m) => formatLabel(m.membershipType),
+  },
+  {
+    id: 'visits',
+    label: 'Visits',
+    groups: ['Under 3 a month', '3 to 8 a month', 'Over 8 a month'],
+    groupOf: (_member, _asOf, visitsPerMonth) => visitBand(visitsPerMonth),
+  },
+  {
+    id: 'tenure',
+    label: 'Time as a member',
+    groups: ['Under 6 months', '6 to 12 months', '1 to 2 years', 'Over 2 years'],
+    groupOf: (m, asOf) => tenureBand(m, asOf),
   },
   choice('experienceLevel', 'Experience at sign-up', EXPERIENCE_LEVELS, (m) => m.experienceLevel),
   yesNo('tookIntroClass', 'Took intro class', (m) => m.tookIntroClass),
