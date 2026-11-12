@@ -1,7 +1,6 @@
 # RetentionApp
 
-Responsive web app (desktop and mobile browsers) for climbing gym owners and
-staff to track member retention and how route setting correlates with it.
+Responsive web app for climbing gym owners to track retention.
 
 Built with React, TypeScript, Vite and Supabase.
 
