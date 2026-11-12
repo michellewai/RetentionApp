@@ -3,11 +3,9 @@ import {
   BOULDER_GRADES,
   CANCELLATION_REASONS,
   DISCIPLINES,
-  DISCOUNT_TYPES,
   EXPERIENCE_LEVELS,
   GENDERS,
   GOALS,
-  INTRO_OFFERS,
   MEMBERSHIP_TYPES,
   ROPE_GRADES,
 } from './types.ts'
@@ -29,7 +27,7 @@ import type {
  */
 
 const SEED = 42
-const MEMBER_COUNT = 60
+const MEMBER_COUNT = 600
 const DAY_MS = 24 * 60 * 60 * 1000
 /** Three months of activity: 11 Aug 2026 to 10 Nov 2026 inclusive. */
 const END = Date.UTC(2026, 10, 10)
@@ -45,28 +43,29 @@ const LAST_NAMES = [
   'Novak', 'Silva', 'Cohen', 'Dubois', 'Haddad', 'Lindgren', 'Moreno',
   'Fischer', 'Yamada', 'Reyes', 'Kowalski', 'Bennett',
 ]
-/** Placeholder postcodes, nearest to the gym first. */
-const POSTCODES = ['10001', '10002', '10003', '10004', '10005', '10006']
-const POSTCODE_WEIGHTS = [10, 8, 6, 4, 2, 1]
+/**
+ * Real Greater Toronto Area postal areas, nearest first to a gym in
+ * downtown Toronto (M5V): the downtown core, then the west and east ends,
+ * North York and Mississauga.
+ */
+const POSTAL_AREAS = ['M5V', 'M5T', 'M5A', 'M6J', 'M6K', 'M4M', 'M2N', 'L5B']
+const POSTAL_AREA_WEIGHTS = [10, 8, 6, 5, 4, 3, 2, 1]
 
 /** Weights line up with the arrays in types.ts. */
-const SOURCE_WEIGHTS = [35, 20, 18, 12, 8, 7]
-const OFFER_WEIGHTS = [50, 20, 20, 10]
-const DISCOUNT_WEIGHTS = [65, 15, 10, 10]
+const SOURCE_WEIGHTS = [35, 20, 18, 12, 8]
 const DISCIPLINE_WEIGHTS = [55, 25, 20]
 const MEMBERSHIP_WEIGHTS = [55, 20, 15, 10]
 const EXPERIENCE_WEIGHTS = [25, 25, 30, 20]
 const GENDER_WEIGHTS = [45, 50, 5]
 const GOAL_WEIGHTS = [40, 30, 22, 8]
 const REASON_WEIGHTS = [15, 20, 12, 20, 18, 8, 7]
-/** Full price in US dollars for one billing period of each membership. */
+/** Price in Canadian dollars for one billing period of each membership. */
 const BASE_PRICES: Record<MembershipType, number> = {
   monthly: 85,
   annual: 850,
   punch_pass: 180,
   day_pass: 25,
 }
-const DISCOUNT_RATES = { none: 0, student: 0.2, corporate: 0.15, family: 0.1 }
 
 /** Relative likelihood of a check-in at each hour from 06:00 to 21:00. */
 const HOUR_WEIGHTS = [2, 3, 2, 1, 1, 2, 4, 3, 2, 2, 3, 6, 10, 10, 7, 3]
@@ -157,14 +156,13 @@ function generate() {
     )
     const gender = maybe(0.75, () => pick(GENDERS, GENDER_WEIGHTS))
     const mainGoal = maybe(0.7, () => pick(GOALS, GOAL_WEIGHTS))
-    const postcode = maybe(0.8, () => pick(POSTCODES, POSTCODE_WEIGHTS))
+    const postalArea = maybe(0.8, () => pick(POSTAL_AREAS, POSTAL_AREA_WEIGHTS))
 
-    // How they joined. Day-pass visitors get no offers or discounts.
+    // How they joined.
     const isDayPass = membershipType === 'day_pass'
     const acquisitionSource = maybe(0.8, () =>
       pick(ACQUISITION_SOURCES, SOURCE_WEIGHTS),
     )
-    const introOffer = isDayPass ? 'none' : pick(INTRO_OFFERS, OFFER_WEIGHTS)
     const dayPassVisitsBeforeJoining =
       !isDayPass && random() < 0.45 ? int(1, 5) : 0
 
@@ -173,17 +171,15 @@ function generate() {
     const climbsRopes =
       preferredDiscipline === 'top_rope' || preferredDiscipline === 'lead'
     const tookIntroClass = random() < (skillIndex === 0 ? 0.7 : 0.15)
-    const hadOrientation = random() < 0.6
+    // Orientation is required on a first visit, so everyone has had it.
+    const hadOrientation = true
     const belayTestPassedOn =
       random() < (climbsRopes ? 0.9 : 0.2)
         ? toDate(Math.min(END, startDay + int(0, 21) * DAY_MS))
         : null
 
     // Price and billing. Only contracts can have failed payments.
-    const discountType = isDayPass ? 'none' : pick(DISCOUNT_TYPES, DISCOUNT_WEIGHTS)
-    const price = Math.round(
-      BASE_PRICES[membershipType] * (1 - DISCOUNT_RATES[discountType]),
-    )
+    const price = BASE_PRICES[membershipType]
     const failedPaymentCount = hasContract && random() < 0.2 ? int(1, 3) : 0
 
     // Gear. More experienced climbers are more likely to own their own.
@@ -276,10 +272,8 @@ function generate() {
       cancellationReason,
       previousMemberships,
       price,
-      discountType,
       failedPaymentCount,
       acquisitionSource,
-      introOffer,
       dayPassVisitsBeforeJoining,
       tookIntroClass,
       hadOrientation,
@@ -293,7 +287,7 @@ function generate() {
       heightCm,
       gender,
       mainGoal,
-      postcode,
+      postalArea,
     })
   }
 

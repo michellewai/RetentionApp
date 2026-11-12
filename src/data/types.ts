@@ -39,17 +39,8 @@ export type CancellationReason = (typeof CANCELLATION_REASONS)[number]
 
 export const ACQUISITION_SOURCES = [
   'friend_referral', 'walk_in', 'social_media', 'web_search', 'event',
-  'corporate_partner',
 ] as const
 export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number]
-
-export const INTRO_OFFERS = [
-  'none', 'free_trial', 'discounted_first_month', 'intro_class_bundle',
-] as const
-export type IntroOffer = (typeof INTRO_OFFERS)[number]
-
-export const DISCOUNT_TYPES = ['none', 'student', 'corporate', 'family'] as const
-export type DiscountType = (typeof DISCOUNT_TYPES)[number]
 
 /** A membership the person held and ended before their current one. */
 export interface PreviousMembership {
@@ -82,22 +73,21 @@ export interface Member {
   previousMemberships: PreviousMembership[]
 
   /**
-   * Price in US dollars after discount: per month for monthly, per year for
+   * Price in Canadian dollars: per month for monthly, per year for
    * annual, per 10-visit pass for punch_pass and per visit for day_pass.
    */
   price: number
-  discountType: DiscountType
   /** Payments that have failed on the current membership. */
   failedPaymentCount: number
 
   /** How they joined. The source is asked at sign-up and optional. */
   acquisitionSource: AcquisitionSource | null
-  introOffer: IntroOffer
   /** Day-pass visits made before taking out a membership. */
   dayPassVisitsBeforeJoining: number
 
   /** Onboarding steps completed. */
   tookIntroClass: boolean
+  /** Required on a first visit, so true for everyone. */
   hadOrientation: boolean
   /** Date the belay test was passed; null if not passed. */
   belayTestPassedOn: string | null
@@ -116,7 +106,11 @@ export interface Member {
   heightCm: number | null
   gender: Gender | null
   mainGoal: Goal | null
-  postcode: string | null
+  /**
+   * First three characters of the home postal code (the forward sortation
+   * area), such as 'M4M'.
+   */
+  postalArea: string | null
 }
 
 export interface CheckIn {
