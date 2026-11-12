@@ -24,6 +24,9 @@ import type {
  * run produces the same data. Change SEED or MEMBER_COUNT for a different set.
  *
  * Check-ins cover three months. Memberships can start earlier.
+ *
+ * The numbers are calibrated to published figures where they exist; the
+ * README lists each source and which values are assumptions.
  */
 
 const SEED = 42
@@ -56,7 +59,8 @@ const SOURCE_WEIGHTS = [35, 20, 18, 12, 8]
 const DISCIPLINE_WEIGHTS = [55, 25, 20]
 const MEMBERSHIP_WEIGHTS = [55, 20, 15, 10]
 const EXPERIENCE_WEIGHTS = [25, 25, 30, 20]
-const GENDER_WEIGHTS = [45, 50, 5]
+/** Woman, man, non-binary: climbing gyms skew male. */
+const GENDER_WEIGHTS = [35, 62, 3]
 const GOAL_WEIGHTS = [40, 30, 22, 8]
 const REASON_WEIGHTS = [15, 20, 12, 20, 18, 8, 7]
 /** Price in Canadian dollars for one billing period of each membership. */
@@ -66,6 +70,47 @@ const BASE_PRICES: Record<MembershipType, number> = {
   punch_pass: 180,
   day_pass: 25,
 }
+
+/** Most members are 20 to 30. Each band is [youngest, oldest, weight]. */
+const AGE_BANDS = [
+  [16, 19, 8],
+  [20, 30, 60],
+  [31, 40, 22],
+  [41, 60, 10],
+] as const
+
+/**
+ * Mean measured height in cm for Canadians aged 20 to 39 (Statistics
+ * Canada, Canadian Health Measures Survey 2007 to 2009). The spread is an
+ * assumption; the survey tables do not publish one.
+ */
+const HEIGHT_CM = {
+  man: { mean: 176.6, spread: 7 },
+  woman: { mean: 163.8, spread: 6.5 },
+}
+
+/**
+ * Chance per month that a monthly member cancels, by how often they visit.
+ * Griptonite's case study found members under three visits a month had a
+ * 61% chance of cancelling; here that is read as 61% within a year, which
+ * is 7.5% a month. The two higher bands are assumptions.
+ */
+const MONTHLY_CANCEL_CHANCE = { low: 0.075, medium: 0.03, high: 0.012 }
+/** Visits a month that separate the low, medium and high bands. */
+const LOW_VISITS_PER_MONTH = 3
+const HIGH_VISITS_PER_MONTH = 8
+const WEEKS_PER_MONTH = 52 / 12
+/** New members cancel more: about half of gym memberships end within six
+ * months (fitness industry figure). Both multipliers are assumptions. */
+const NEW_MEMBER_MONTHS = 6
+const NEW_MEMBER_RISK = 2
+const ESTABLISHED_MEMBER_RISK = 0.7
+/** Annual members are locked in for the year. An assumption. */
+const ANNUAL_CONTRACT_RISK = 0.3
+/** Share of first-time day-pass visitors who never return (Griptonite). */
+const NEVER_RETURN_CHANCE = 0.66
+/** A visitor who does return is twice as likely to come again (Griptonite). */
+const RETURN_AGAIN_CHANCE = 0.68
 
 /** Relative likelihood of a check-in at each hour from 06:00 to 21:00. */
 const HOUR_WEIGHTS = [2, 3, 2, 1, 1, 2, 4, 3, 2, 2, 3, 6, 10, 10, 7, 3]
@@ -100,6 +145,12 @@ function generate() {
   /** Returns the value some of the time and null otherwise. */
   const maybe = <T,>(chance: number, value: () => T): T | null =>
     random() < chance ? value() : null
+  /** A bell-curve value around a mean (Box-Muller transform). */
+  const normal = (mean: number, spread: number) =>
+    mean +
+    spread *
+      Math.sqrt(-2 * Math.log(1 - random())) *
+      Math.cos(2 * Math.PI * random())
   const toDate = (ms: number) => new Date(ms).toISOString().slice(0, 10)
   const gradesFor = (discipline: Discipline | null): readonly Grade[] =>
     discipline === 'top_rope' || discipline === 'lead'
@@ -113,8 +164,8 @@ function generate() {
     const id = `m${String(i + 1).padStart(3, '0')}`
     const name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`
 
-    // Ages run from 16 to 55, skewed young.
-    const age = 16 + Math.floor(random() ** 1.6 * 40)
+    const ageBand = pick(AGE_BANDS, AGE_BANDS.map((band) => band[2]))
+    const age = int(ageBand[0], ageBand[1])
     const dateOfBirth = toDate(
       END - Math.floor(age * 365.25) * DAY_MS - int(0, 364) * DAY_MS,
     )
@@ -151,10 +202,16 @@ function generate() {
     const projectIndex = Math.min(top, maxIndex + int(1, 2))
     const maxGrade = maybe(0.65, () => grades[maxIndex])
     const projectGrade = maybe(0.7, () => grades[projectIndex])
-    const heightCm = maybe(0.6, () =>
-      Math.round(150 + (random() + random() + random()) * 15),
-    )
     const gender = maybe(0.75, () => pick(GENDERS, GENDER_WEIGHTS))
+    // Height follows the member's gender. Anyone who did not say, or is
+    // non-binary, is drawn from one of the two published distributions.
+    const heightKey =
+      gender === 'man' || gender === 'woman'
+        ? gender
+        : pick(['woman', 'man'] as const, GENDER_WEIGHTS.slice(0, 2))
+    const heightCm = maybe(0.6, () =>
+      Math.round(normal(HEIGHT_CM[heightKey].mean, HEIGHT_CM[heightKey].spread)),
+    )
     const mainGoal = maybe(0.7, () => pick(GOALS, GOAL_WEIGHTS))
     const postalArea = maybe(0.8, () => pick(POSTAL_AREAS, POSTAL_AREA_WEIGHTS))
 
@@ -202,12 +259,12 @@ function generate() {
       }
     }
 
-    // Visit habit depends on the kind of membership.
+    // Visit habit. Members average about 5.2 visits a month (Griptonite),
+    // with most below that and a few far above.
     const visitsPerWeek = hasContract
-      ? 0.5 + random() * random() * 3.5
-      : membershipType === 'punch_pass'
-        ? 0.3 + random()
-        : 0.15 + random() * 0.2
+      ? 0.3 + random() * random() * 3.6
+      : 0.3 + random()
+    const visitsPerMonth = visitsPerWeek * WEEKS_PER_MONTH
 
     // What happens to the member during the window.
     let lastVisitDay = END
@@ -217,45 +274,76 @@ function generate() {
     let membershipEndDate: number | null = null
     let cancellationReason: Member['cancellationReason'] = null
 
-    const fate = random()
     if (hasContract) {
-      const cancelChance = membershipType === 'monthly' ? 0.22 : 0.05
-      if (fate < cancelChance) {
+      // The chance of cancelling depends on how often they visit, how new
+      // they are and their contract. Age, gender and ability play no part:
+      // Griptonite found churn roughly equal across those groups.
+      const band =
+        visitsPerMonth < LOW_VISITS_PER_MONTH
+          ? 'low'
+          : visitsPerMonth > HIGH_VISITS_PER_MONTH
+            ? 'high'
+            : 'medium'
+      const monthsAsMember = (activeFrom - startDay) / DAY_MS / 30.4
+      const monthlyChance =
+        MONTHLY_CANCEL_CHANCE[band] *
+        (monthsAsMember < NEW_MEMBER_MONTHS
+          ? NEW_MEMBER_RISK
+          : ESTABLISHED_MEMBER_RISK) *
+        (membershipType === 'annual' ? ANNUAL_CONTRACT_RISK : 1)
+      // Days until they cancel, drawn so each month carries that chance.
+      const daysUntilCancel = Math.max(
+        7,
+        Math.round((Math.log(1 - random()) / Math.log(1 - monthlyChance)) * 30.4),
+      )
+      if (daysUntilCancel <= daysLeft) {
         // Cancels: visits tail off up to two weeks before the request.
-        cancelledAt = activeFrom + int(7, Math.max(7, daysLeft)) * DAY_MS
+        cancelledAt = activeFrom + daysUntilCancel * DAY_MS
         membershipEndDate = cancelledAt + int(0, 30) * DAY_MS
         cancellationReason = pick(CANCELLATION_REASONS, REASON_WEIGHTS)
         lastVisitDay = cancelledAt - int(0, 14) * DAY_MS
-      } else if (fate < cancelChance + 0.08) {
+      } else if (random() < 0.05) {
         // Freezes for two to six weeks.
         frozenFrom = activeFrom + int(0, Math.max(0, daysLeft - 14)) * DAY_MS
         frozenTo = frozenFrom + int(14, 42) * DAY_MS
-      } else if (fate < cancelChance + 0.18) {
-        // Still paying but has stopped coming.
-        lastVisitDay = activeFrom + int(0, daysLeft) * DAY_MS
       }
-    } else if (fate < 0.3) {
-      // Pass holders who drift away.
+    } else if (membershipType === 'punch_pass' && random() < 0.3) {
+      // Punch-pass holders who drift away without using every visit.
       lastVisitDay = activeFrom + int(0, daysLeft) * DAY_MS
     }
 
-    for (
-      let day = activeFrom;
-      day <= Math.min(lastVisitDay, END);
-      day += DAY_MS
-    ) {
-      if (frozenFrom !== null && frozenTo !== null) {
-        if (day >= frozenFrom && day <= frozenTo) continue
-      }
-      const chance = visitsPerWeek / 7
-      // New joiners always check in on the day they join.
-      if (day !== startDay && random() >= chance) continue
+    const addCheckIn = (day: number) => {
       const hour = FIRST_HOUR + pick(HOUR_OFFSETS, HOUR_WEIGHTS)
       const seconds = (hour * 60 + int(0, 59)) * 60 + int(0, 59)
       checkIns.push({
         memberId: id,
         checkedInAt: new Date(day + seconds * 1000).toISOString(),
       })
+    }
+
+    if (isDayPass) {
+      // Day-pass visitors come once; most never return, and each return
+      // makes another more likely.
+      addCheckIn(startDay)
+      let day = startDay + int(3, 21) * DAY_MS
+      let returns = random() >= NEVER_RETURN_CHANCE
+      while (returns && day <= END) {
+        addCheckIn(day)
+        day += int(3, 21) * DAY_MS
+        returns = random() < RETURN_AGAIN_CHANCE
+      }
+    } else {
+      for (
+        let day = activeFrom;
+        day <= Math.min(lastVisitDay, END);
+        day += DAY_MS
+      ) {
+        if (frozenFrom !== null && frozenTo !== null) {
+          if (day >= frozenFrom && day <= frozenTo) continue
+        }
+        // New joiners always check in on the day they join.
+        if (day === startDay || random() < visitsPerWeek / 7) addCheckIn(day)
+      }
     }
 
     const dateOrNull = (ms: number | null) => (ms === null ? null : toDate(ms))
