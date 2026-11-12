@@ -40,6 +40,18 @@ npm run test:watch
 
 Test files sit next to the code they cover and end in `.test.ts`.
 
+## Data source
+
+`VITE_DATA_SOURCE` in `.env` chooses where the app reads its data from:
+
+| Value | Reads from | Needs |
+|---|---|---|
+| `code` (default) | The generated fake data in `src/data/mockData.ts` | Nothing |
+| `supabase` | The same data, loaded from the Supabase database | The Supabase URL and key in `.env`, and the database set up as below |
+
+Restart the dev server after changing it. The line under the page heading
+says which source is in use.
+
 ## Database
 
 The schema and seed data for Supabase live in `supabase/`. The app does

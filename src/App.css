@@ -14,3 +14,25 @@
   color: #666;
   font-size: 0.875rem;
 }
+
+.page-message {
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #444;
+  font-size: 0.9375rem;
+}
+
+.page-message p {
+  margin: 0;
+}
+
+.page-message p + p {
+  margin-top: 6px;
+  color: #666;
+  font-size: 0.8125rem;
+}
+
+.page-error {
+  border-color: #d03b3b;
+}
