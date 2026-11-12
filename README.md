@@ -23,3 +23,19 @@ npm run dev
 ```
 
 Other scripts: `npm run build`, `npm run preview`, `npm run lint`.
+
+## Test
+
+Tests use Vitest and cover the retention rules in `src/retention/`.
+
+```bash
+npm test
+```
+
+To rerun tests automatically as you edit:
+
+```bash
+npm run test:watch
+```
+
+Test files sit next to the code they cover and end in `.test.ts`.
