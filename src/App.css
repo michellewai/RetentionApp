@@ -1,0 +1,16 @@
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.page-header p {
+  margin: 4px 0 20px;
+  color: #666;
+  font-size: 0.875rem;
+}

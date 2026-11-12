@@ -1,0 +1,140 @@
+.viz-root {
+  --surface: #fff;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --hairline: #e1e0d9;
+  --series: #2a78d6;
+  --series-muted: #c3c2b7;
+  /* Space kept free at the end of every track for the value label. */
+  --value-room: 8.5rem;
+  color: var(--text-primary);
+}
+
+.viz-root h2 {
+  margin: 24px 0 0;
+  font-size: 1rem;
+}
+
+.viz-root h3 {
+  margin: 0 0 6px;
+  font-size: 0.9375rem;
+}
+
+.chart-note {
+  margin: 4px 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.stat-tiles > div {
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.stat-tiles dt {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.stat-tiles dd {
+  margin: 2px 0 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stat-tiles .stat-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.attribute-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.attribute-chart {
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.bar-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-list li {
+  padding: 4px 0;
+}
+
+.bar-label {
+  display: block;
+  font-size: 0.8125rem;
+}
+
+.bar-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 22px;
+}
+
+.bar {
+  flex: none;
+  width: calc(var(--value) * (100% - var(--value-room)));
+  min-width: 2px;
+  height: 14px;
+  border-radius: 0 4px 4px 0;
+  background: var(--series);
+}
+
+.bar-muted {
+  background: var(--series-muted);
+}
+
+/* Values line up in the room after the track so the reference tick never
+   runs through them. */
+.bar-value {
+  flex: none;
+  width: calc(var(--value-room) - 8px);
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar-reference,
+.reference-key {
+  width: 2px;
+  background: var(--text-primary);
+}
+
+.bar-reference {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--value) * (100% - var(--value-room)));
+  /* A surface-coloured ring keeps the tick readable where it crosses a bar. */
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+.reference-key {
+  display: inline-block;
+  height: 0.9em;
+  margin: 0 4px 0 6px;
+  vertical-align: -1px;
+}
