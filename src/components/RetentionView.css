@@ -4,10 +4,12 @@
   --text-secondary: #52514e;
   --text-muted: #898781;
   --hairline: #e1e0d9;
-  --series: #2a78d6;
-  --series-muted: #c3c2b7;
-  /* Space kept free at the end of every track for the value label. */
-  --value-room: 8.5rem;
+  --baseline: #c3c2b7;
+  /* Above and below the overall rate: two opposite hues. */
+  --above: #2a78d6;
+  --below: #e34948;
+  /* Group size, and groups too small or vague to compare. */
+  --neutral: #c3c2b7;
   color: var(--text-primary);
 }
 
@@ -70,71 +72,139 @@
   border-radius: 8px;
 }
 
-.bar-list {
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-swatch.above { background: var(--above); }
+.legend-swatch.below { background: var(--below); }
+.legend-swatch.muted { background: var(--neutral); }
+
+/* One row per group: a size cell, a difference track and the rate. The
+   column header above the list uses the same three columns. */
+.chart-columns,
+.group-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) 4.5rem;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.chart-columns {
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.chart-columns span:last-child {
+  grid-column: 2 / 4;
+}
+
+.group-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.bar-list li {
+.group-list li {
   padding: 4px 0;
 }
 
-.bar-label {
+.group-label {
   display: block;
   font-size: 0.8125rem;
 }
 
-.bar-track {
-  position: relative;
-  display: flex;
-  align-items: center;
+.group-flag {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.group-row {
   height: 22px;
 }
 
-.bar {
+.size-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.size-bar {
   flex: none;
-  width: calc(var(--value) * (100% - var(--value-room)));
+  /* Full length is the biggest group on the page; 2.25rem is kept for
+     the count. */
+  width: calc(var(--value) * (100% - 2.25rem));
   min-width: 2px;
-  height: 14px;
-  border-radius: 0 4px 4px 0;
-  background: var(--series);
+  height: 10px;
+  border-radius: 0 2px 2px 0;
+  background: var(--neutral);
 }
 
-.bar-muted {
-  background: var(--series-muted);
-}
-
-/* Values line up in the room after the track so the reference tick never
-   runs through them. */
-.bar-value {
-  flex: none;
-  width: calc(var(--value-room) - 8px);
-  margin-left: auto;
+.cell-value {
   color: var(--text-secondary);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.bar-reference,
-.reference-key {
-  width: 2px;
-  background: var(--text-primary);
+/* The centre line is the overall rate; bars grow away from it. */
+.difference-track {
+  position: relative;
+  height: 100%;
+  background: linear-gradient(var(--baseline), var(--baseline)) center / 1px 100%
+    no-repeat;
 }
 
-.bar-reference {
+.difference-bar {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--value) * (100% - var(--value-room)));
-  /* A surface-coloured ring keeps the tick readable where it crosses a bar. */
-  box-shadow: 0 0 0 1px var(--surface);
+  top: 4px;
+  bottom: 4px;
+  width: calc(var(--value) * 50%);
+  min-width: 2px;
 }
 
-.reference-key {
-  display: inline-block;
-  height: 0.9em;
-  margin: 0 4px 0 6px;
-  vertical-align: -1px;
+.difference-bar.above {
+  left: 50%;
+  border-radius: 0 4px 4px 0;
+  background: var(--above);
+}
+
+.difference-bar.below {
+  right: 50%;
+  border-radius: 4px 0 0 4px;
+  background: var(--below);
+}
+
+.difference-bar.muted {
+  background: var(--neutral);
+}
+
+.rate-value {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.rate-difference {
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
