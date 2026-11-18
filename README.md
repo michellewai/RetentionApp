@@ -1,158 +1,80 @@
 # RetentionApp
 
-Responsive web app for climbing gym owners to track retention.
+A dashboard that helps climbing gym owners see **who is staying, who is
+slipping away, and what the members who leave have in common.**
 
-Built with React, TypeScript, Vite and Supabase.
+![RetentionApp showing the User Dashboard and retention data](docs/screenshot.png)
 
-## Setup
+Gyms live on memberships, and most people who cancel go quiet first. This
+app turns check-in history into a retention picture an owner can act on.
+
+## What it does
+
+- Sorts every member into **active, frozen, at risk or churned** from their
+  visit history. No visit in 30 days puts a member at risk. Pass holders
+  count as churned after 60 days.
+- Shows the retention rate for **each member attribute**: membership type,
+  visits per month, time as a member, project grade, age, height and
+  postal area.
+- Keeps day-pass visitors out of the numbers, since they never held a
+  membership to retain.
+
+## Tech
+
+React 19, TypeScript, Vite and Supabase (Postgres), with Vitest for tests
+and oxlint for linting.
+
+Some choices worth a look:
+
+- **The retention rules are plain functions** in `src/retention/`, separate
+  from the UI, and covered by tests (`npm test`).
+- **The data source is swappable.** The app runs on generated data in code
+  with no setup, or on the same data loaded from Supabase. Set
+  `VITE_DATA_SOURCE` to `code` or `supabase`.
+- **The schema is versioned.** Migrations and seed data live in
+  `supabase/`. Tables use row-level security: public read, no writes.
+  That suits a demo of generated data. Real member records would need
+  staff sign-in and per-gym rules.
+
+## Status and next steps
+
+This is a work in progress. Planned next:
+
+- **At-risk member list.** Show the members who have gone quiet, with days
+  since their last visit, so an owner knows who to reach out to.
+- **Pattern finder across attributes.** Today each attribute is shown on its
+  own. Mapping them against each other (for example, new members who visit
+  under 3 times a month) would show combinations that predict churn.
+- **Staff sign-in and per-gym access**, so the app could safely hold real
+  member records instead of generated data.
+
+## Run it
 
 Requires Node 22.13 or newer.
 
 ```bash
 npm install
-cp .env.example .env
-```
-
-Fill in `.env` with the project URL and publishable key from Supabase
-(Project Settings > API).
-
-## Run
-
-```bash
 npm run dev
 ```
 
-Other scripts: `npm run build`, `npm run preview`, `npm run lint`.
+That uses the generated data and needs no other setup. To read from
+Supabase instead, see [docs/supabase.md](docs/supabase.md).
 
-## Test
+Other scripts: `npm test`, `npm run build`, `npm run lint`.
 
-Tests use Vitest and cover the retention rules in `src/retention/`.
+## About the data
 
-```bash
-npm test
-```
+No public dataset of climbing gym memberships and check-ins exists, so the
+data is generated from a fixed seed in `src/data/mockData.ts`. Where
+published figures exist, it is calibrated to them:
 
-To rerun tests automatically as you edit:
+- 66% of first-time day-pass visitors never return (Griptonite study of UK
+  climbing gyms)
+- About 5.2 visits a month for the average member (Griptonite case study)
+- 61% of members visiting under 3 times a month cancel, read here as within
+  a year (the study gives no time frame, so that is an assumption)
+- Heights from Statistics Canada, ages 20 to 39
 
-```bash
-npm run test:watch
-```
-
-Test files sit next to the code they cover and end in `.test.ts`.
-
-## Data source
-
-`VITE_DATA_SOURCE` in `.env` chooses where the app reads its data from:
-
-| Value | Reads from | Needs |
-|---|---|---|
-| `code` (default) | The generated fake data in `src/data/mockData.ts` | Nothing |
-| `supabase` | The same data, loaded from the Supabase database | The Supabase URL and key in `.env`, and the database set up as below |
-
-Restart the dev server after changing it. The line under the page heading
-says which source is in use.
-
-## Database
-
-The schema and seed data for Supabase live in `supabase/`. The app does
-not read from the database yet; it still uses the generated data in code.
-
-- `supabase/migrations/` holds the schema: the `members`,
-  `previous_memberships` and `check_ins` tables and their access rules.
-- `supabase/seed.sql` holds the fake data. It empties the tables first, so
-  it is safe to run again.
-
-Every table has row-level security on with one policy: anyone can read,
-nobody can write through the API. That suits a public demo of generated
-data. Real member records would need staff sign-in and per-gym rules.
-
-### Apply it with the Supabase CLI
-
-Install the CLI (macOS):
-
-```bash
-brew install supabase/tap/supabase
-```
-
-Create `supabase/config.toml`. This is needed once per clone and leaves
-the existing migration and seed alone:
-
-```bash
-supabase init
-```
-
-Sign in, which opens a browser:
-
-```bash
-supabase login
-```
-
-Link this folder to the hosted project. The project ref is the first part
-of the project URL, and the command asks for the database password:
-
-```bash
-supabase link --project-ref YOUR_PROJECT_REF
-```
-
-Preview what would be applied:
-
-```bash
-supabase db push --dry-run --remote
-```
-
-Apply the migration and load the seed data:
-
-```bash
-supabase db push --include-seed --remote
-```
-
-These commands are for CLI version 3. Older versions push to the linked
-project by default and do not accept `--remote`; `supabase db push --help`
-shows what your version expects.
-
-### Or use the SQL Editor
-
-With no CLI, paste the migration file and then `seed.sql` into the SQL
-Editor in the Supabase dashboard and run each. This does not record
-migration history.
-
-### Changing the schema or data
-
-Add a schema change as a new file, never by editing one already applied:
-
-```bash
-supabase migration new describe_the_change
-```
-
-`seed.sql` is generated. After changing the fake data, rebuild it with:
-
-```bash
-npm run seed:generate
-```
-
-## Fake data
-
-The app runs on generated data, not real member records. It is produced
-from a fixed seed in `src/data/mockData.ts` and calibrated to published
-figures where they exist.
-
-| What | Value used | Basis |
-|---|---|---|
-| First-time day-pass visitors who never return | 66% | Griptonite study of UK climbing gyms [1] |
-| Average member visits | About 5.2 a month | Griptonite case study [2] |
-| Cancelling when under 3 visits a month | 61%, read here as within a year | Griptonite case study [2]; the study gives no time frame, so one year is an assumption |
-| Churn by age, gender and ability | No difference | Griptonite found it roughly equal [2] |
-| Height | Men 176.6 cm, women 163.8 cm on average | Statistics Canada, ages 20 to 39 [3] |
-| Gender split | 62% men, 35% women, 3% non-binary | Assumption: climbing gyms skew male |
-| Age | 60% aged 20 to 30 | Assumption |
-| New members (under 6 months) | Twice the cancellation risk | Assumption, after a fitness-industry figure that about half of memberships end within six months [2] |
-| Annual members | 30% of the monthly cancellation risk | Assumption |
-| Height spread, other visit bands | See the constants in the file | Assumption |
-
-No Toronto-specific height data is published, so national Canadian figures
-stand in. No public dataset of climbing gym memberships and check-ins
-exists, which is why the data is generated.
-
-1. [Two tips from Griptonite to decrease churn](https://climbingbusinessjournal.com/two-tips-from-griptonite-you-can-try-now-to-decrease-churn-and-increase-retention/), Climbing Business Journal, 2024
-2. [Griptonite attendance and engagement case study](https://climbingbusinessjournal.com/crunching-the-numbers-griptonite-analyzes-an-attendance-and-engagement-case-study/), Climbing Business Journal, 2025
-3. [Body composition of Canadian adults, 2007 to 2009](https://www150.statcan.gc.ca/n1/pub/82-625-x/2010001/article/11091-eng.htm), Statistics Canada
+Other values, such as the gender split, age mix and the extra cancellation
+risk for new members, are labelled assumptions. See the full table with
+sources in [docs/fake-data.md](docs/fake-data.md).
